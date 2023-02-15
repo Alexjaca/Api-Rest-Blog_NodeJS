@@ -1,0 +1,1 @@
+console.log('Iniciando index.js...');
