@@ -36,6 +36,14 @@ app.get('/probando', (req, res) =>{
 });
 
 
+//CARGA DE LAS RUTAS
+const rutas_articulo = require("./routes/article");
+
+
+//RUTAS TEST HARDCODEADA
+app.use("/api", rutas_articulo);
+
+
 //Crear el servidor y escuchar peticiones
 app.listen(puerto, ()=>{
     console.log('Servidor corriendo en el puerto '+ puerto);
