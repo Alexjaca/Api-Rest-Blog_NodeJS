@@ -16,7 +16,8 @@ const puerto = 3900;
 app.use(cors());
 
 //convertir body a objeto json
-app.use(express.json());
+app.use(express.json());//Recibir datos de content-type app/json
+app.use(express.urlencoded({ extended:true})); //Poder recibir parametros x-www-form-urlencode de formularios
 
 
 //Crear Rutas
@@ -38,6 +39,7 @@ app.get('/probando', (req, res) =>{
 
 //CARGA DE LAS RUTAS
 const rutas_articulo = require("./routes/article");
+const { urlencoded } = require("express");
 
 
 //RUTAS TEST HARDCODEADA
