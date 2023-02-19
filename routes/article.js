@@ -29,6 +29,8 @@ router.get("/article/:id", ArticleController.ListArticlesById);
 router.delete("/article/:id", ArticleController.Delete);
 router.put("/article/:id", ArticleController.Edit);
 router.post("/upload-image/:id",[subidas.single("file0")], ArticleController.UploadFile);//pasandole el nombre con el que subiremos la imagen
+router.get("/image/:fichero", ArticleController.image);
+router.get("/buscar/:search", ArticleController.search);
 
 
 

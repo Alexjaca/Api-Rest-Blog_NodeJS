@@ -1,6 +1,7 @@
 const Article = require("../models/Article");
-const {ValidateArticle} = require("../helpers/validate");
+const { ValidateArticle } = require("../helpers/validate");
 const fs = require("fs");//filesystem se usa para eliminar archivos
+const path = require("path");//extrater archivo desde la ruta
 
 ///////////////////////////////////////////////////////////////////////////////////////////////
 const test = (req, res) => {
@@ -131,16 +132,29 @@ const ListArticlesById = (req, res) => {
 }
 
 ///////////////////////////////////////////////////////////////////////////////////////////////
-const Delete = (req, res) =>{
+const Delete = (req, res) => {
 
     let articleId = req.params.id;
 
-    Article.findOneAndDelete({_id: articleId}, (err, deletedArticle)=>{
+    Article.findOneAndDelete({ _id: articleId }, (err, deletedArticle) => {
 
-        if(err || !deletedArticle){
+        if (err || !deletedArticle) {
             return res.status(404).json({
                 status: 'error',
                 message: 'Articulo no Encontrado para ser Borrado'
+            });
+        }
+
+
+        let image = deletedArticle.image;
+        let ruta_fisica = "./images/articles/"+image;
+
+        //ELIMINANDO LA IMAGEN TAMBIEN AL ELIMINAR EL ARCHIVO
+        if(ruta_fisica){
+            fs.unlink(ruta_fisica, (err) =>{
+                if(err){
+                    console.log("No se puro eliminar la Imagen!!!!");
+                }
             });
         }
 
@@ -149,11 +163,12 @@ const Delete = (req, res) =>{
             Article: deletedArticle,
             message: 'Articulo borrado correctamente!!!'
         });
-    });   
+ 
+    });
 }
 
 ///////////////////////////////////////////////////////////////////////////////////////////////
-const Edit = (req, res) =>{
+const Edit = (req, res) => {
 
     let articleId = req.params.id;
 
@@ -161,7 +176,7 @@ const Edit = (req, res) =>{
     let params = req.body;
 
     //Validar datos
-    try{
+    try {
         ValidateArticle(params);
     } catch (err) {
         return res.status(400).json({
@@ -169,34 +184,36 @@ const Edit = (req, res) =>{
             message: 'Faltan datos para ingresar'
         });
     }
-    
-    
+
+
 
     //buscar y actualizar                    {new: true} me devuelve el opbjeto actualziado recientemente
-    Article.findOneAndUpdate({_id: articleId}, params,{new: true}, (err, updateArticle) =>{
+    Article.findOneAndUpdate({ _id: articleId }, params, { new: true }, (err, updateArticle) => {
 
-        if(err || !updateArticle){
+        if (err || !updateArticle) {
             return res.status(500).json({
                 status: 'error',
-                message: 'Error al Actualizar'            
+                message: 'Error al Actualizar'
             });
         }
 
-         //devolver respuesta
-         return res.status(200).json({
+        //devolver respuesta
+        return res.status(200).json({
             status: 'success',
             article: updateArticle
-         });
+        });
 
-    }); 
+    });
 }
 
-const UploadFile = (req, res) =>{
+
+///////////////////////////////////////////////////////////////////////////////////////////////
+const UploadFile = (req, res) => {
 
     //configurar libreria multer para subir archivos en el archivo de rutas
 
     //recoger archivo de imagen subida
-    if(!req.file && !req.files){
+    if (!req.file && !req.files) {
         res.status(400).json({
             status: 'error',
             message: 'Peticion invalida!!'
@@ -211,32 +228,92 @@ const UploadFile = (req, res) =>{
     let extension_file = file_split[1];
 
     //comprobar extenxion correcta
-    if(extension_file != "png" && extension_file != "jpg" &&
-    extension_file != "jpeg" && extension_file != "gif" ){
+    if (extension_file != "png" && extension_file != "jpg" &&
+        extension_file != "jpeg" && extension_file != "gif") {
 
         //Borrar archivo y dar respuesta
-        fs.unlink(req.file.path, (err) =>{
+        fs.unlink(req.file.path, (err) => {
             res.status(400).json({
                 status: 'error',
                 message: 'Extenxion de la Imagen Invalida!!!!!!'
             });
         });
 
-    }else{
+    } else {
 
-        return res.status(200).json({
-            status: 'success',
-            file: req.file,
-            extension_file
-         });
+        let articleId = req.params.id;
+
+        //buscar y actualizar                    {new: true} me devuelve el opbjeto actualziado recientemente
+        Article.findOneAndUpdate({ _id: articleId }, {image: req.file.filename}, { new: true }, (err, updateArticle) => {
+
+            if (err || !updateArticle) {
+                return res.status(500).json({
+                    status: 'error',
+                    message: 'Error al Actualizar'
+                });
+            }
+
+            //devolver respuesta
+            return res.status(200).json({
+                status: 'success',
+                article: updateArticle,
+                updatefile: req.file
+            });
+
+        });
     }
-    
 
-
-    
 }
 
 
+///////////////////////////////////////////////////////////////////////////////////////////////
+const image = (req, res) =>{
+    let fichero = req.params.fichero;
+    let ruta_fisica = "./images/articles/" + fichero;
+
+    fs.stat(ruta_fisica, (err, existe)=>{
+
+        if(existe){
+            res.sendFile(path.resolve(ruta_fisica)); //extrae arhivo desde la ruta fisica y lo muestra
+        }else{
+            res.status(404).json({
+                status: 'error',
+                messasge: 'Imagen no encontrada en la Base de Datos',
+                err
+            });
+        }
+    });
+}
+
+
+///////////////////////////////////////////////////////////////////////////////////////////////
+const search = (req, res) =>{
+    //sacar el string de la url
+    let search = req.params.search;
+
+    //Find or
+    Article.find({ "$or": [
+        {"title": { "$regex": search, "$options": "i"}},
+        {"content": { "$regex": search, "$options": "i"}}
+    ]})
+    .sort({date: -1}) //ordenar
+    .exec((err, ArticulosEncontrados) =>{ //ejecutar consulta
+        if(err || !ArticulosEncontrados || ArticulosEncontrados.length <= 0){
+            res.status(404).json({
+                status: 'error',
+                messasge: 'No hay resultados de la busqueda',
+                error: err
+            });
+        }else{ //devolver resultad0
+            res.status(200).send({
+                status: 'success',
+                Articles: ArticulosEncontrados
+            });
+        }
+    });
+
+    //Devolver resultado
+}
 
 
 module.exports = {
@@ -247,5 +324,7 @@ module.exports = {
     ListArticlesById,
     Delete,
     Edit,
-    UploadFile
+    UploadFile,
+    image,
+    search
 }
